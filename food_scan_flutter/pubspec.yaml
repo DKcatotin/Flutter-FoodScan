@@ -1,0 +1,46 @@
+name: food_scan_flutter
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^2.25.4
+  firebase_auth: ^4.17.4
+  cloud_firestore: ^4.0.0
+  cupertino_icons: ^1.0.8
+  flutter_native_splash: ^2.4.7
+  google_sign_in: ^6.1.4
+  image_picker: ^1.0.4
+  camera: ^0.10.5
+  mobile_scanner: ^3.5.0
+  http: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4  
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+
+# 👇 ESTE BLOQUE DEBE IR AQUÍ, FUERA DE "flutter:"
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/fod.png"
+
+flutter_native_splash:
+  color: "#ffffff"              # Fondo del splash
+  image: assets/fod.png         # Tu logo (alta resolución)
+  android_gravity: center       # Centrado
+  android: true
+  ios: true

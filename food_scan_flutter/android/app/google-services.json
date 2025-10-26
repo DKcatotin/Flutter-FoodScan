@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "961908088635",
+    "project_id": "food-scan-2cddd",
+    "storage_bucket": "food-scan-2cddd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:961908088635:android:9b99c0e7e12edf80d7a11e",
+        "android_client_info": {
+          "package_name": "com.example.food_scan_flutter"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "961908088635-kkq1lhd99kt0rqof5977pdkojrdf9o2v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.food_scan_flutter",
+            "certificate_hash": "67510e9a2467d004dc78223a818dedd3d6ac01ca"
+          }
+        },
+        {
+          "client_id": "961908088635-e2g0lkacon7kh1b5pj5u8kip8ndsp77i.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCykk2jlHG1pVWn6hIejkrIbF9lxdeRYHk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "961908088635-e2g0lkacon7kh1b5pj5u8kip8ndsp77i.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
