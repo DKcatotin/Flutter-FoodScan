@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:food_scan_flutter/screens/api_test_scren.dart';
 import 'package:food_scan_flutter/screens/profile_screen.dart';
 import 'package:food_scan_flutter/screens/scan_screen.dart';
 import 'screens/login_screen.dart';
@@ -28,6 +29,7 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => ProfileScreen(),
         '/scan': (context) => ScanScreen(),
     //'/history': (context) => HistoryScreen()
+        '/api-test': (context) => ApiTestScreen(),
       },
     );
   }

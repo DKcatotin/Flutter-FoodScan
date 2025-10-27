@@ -20,6 +20,7 @@ dependencies:
   camera: ^0.10.5
   mobile_scanner: ^3.5.0
   http: ^1.1.0
+  logger: ^2.0.2
 
 dev_dependencies:
   flutter_test:
