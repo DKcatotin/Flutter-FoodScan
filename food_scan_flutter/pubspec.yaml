@@ -10,38 +10,55 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # Firebase
   firebase_core: ^2.25.4
   firebase_auth: ^4.17.4
-  cloud_firestore: ^4.0.0
+  cloud_firestore: ^4.17.5   # <- sube desde ^4.0.0 para compat con SDKs recientes
+
+  # UI / utils
   cupertino_icons: ^1.0.8
-  flutter_native_splash: ^2.4.7
-  google_sign_in: ^6.1.4
-  image_picker: ^1.0.4
-  camera: ^0.10.5
-  mobile_scanner: ^3.5.0
   http: ^1.1.0
   logger: ^2.0.2
+  shared_preferences: ^2.2.3
+  flutter_native_splash: ^2.4.7
+  flutter_lints: ^5.0.0
+
+  # Auth social
+  google_sign_in: ^6.1.4
+
+  # Cámara / escaneo en vivo
+  mobile_scanner: ^4.0.0      # <- sube desde ^3.5.0 (mejoras y fixes)
+
+  # Imágenes (galería/cámara para foto)
+  image_picker: ^1.0.7        # <- sube desde ^1.0.4
+
+  # ML Kit (leer código desde imagen)
+  google_mlkit_barcode_scanning: ^0.13.0
+  google_mlkit_commons: ^0.9.0 # <- clave para resolver el conflicto
+
+  # Si NO usas el plugin camera directamente, puedes quitarlo:
+  # camera: ^0.10.5
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
-  flutter_launcher_icons: ^0.14.4  
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   assets:
     - assets/
 
-# 👇 ESTE BLOQUE DEBE IR AQUÍ, FUERA DE "flutter:"
+# 👇 Fuera de "flutter:"
 flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/fod.png"
 
 flutter_native_splash:
-  color: "#ffffff"              # Fondo del splash
-  image: assets/fod.png         # Tu logo (alta resolución)
-  android_gravity: center       # Centrado
+  color: "#ffffff"
+  image: assets/fod.png
+  android_gravity: center
   android: true
   ios: true

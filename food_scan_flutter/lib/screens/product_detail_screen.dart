@@ -558,7 +558,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       fontSize: 16,
                     ),
                   ),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pushNamed(context, '/scan'),
                 ),
               ),
 

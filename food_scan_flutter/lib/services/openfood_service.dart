@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Obtiene producto de OpenFoodFacts y lo convierte al formato de tu app
 Future<Map<String, dynamic>?> getProductFromApi(String barcode) async {
-  final url = 'https://world.openfoodfacts.org/api/v2/product/$barcode';
+  final url = 'https://world.openfoodfacts.org/api/v2/product/$barcode.json';
   
   print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   print('🔍 INICIANDO CONSULTA A API');
