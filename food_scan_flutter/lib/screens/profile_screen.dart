@@ -28,93 +28,192 @@ class _ProfileScreenState extends State<ProfileScreen> {
     loadUserData();
   }
 
+  Future<void> _ensureUserDoc(User user) async {
+    final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final snap = await ref.get();
+    if (!snap.exists) {
+      await ref.set({
+        'name': user.displayName ?? '',
+        'email': user.email,
+        'avatar': '',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+  }
+
   Future<void> loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
+    if (user == null) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+      });
+      return;
+    }
+
+    try {
+      await _ensureUserDoc(user);
+
       if (!mounted) return;
       setState(() {
         email = user.email ?? '';
       });
-      try {
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        if (!mounted) return;
-        if (doc.exists && doc.data() != null) {
-          setState(() {
-            name = doc.data()!['name'] ?? '';
-            avatarUrl = doc.data()!['avatar'] ?? '';
-            loading = false;
-          });
-        } else {
-          setState(() {
-            name = '(no configurado)';
-            avatarUrl = '';
-            loading = false;
-          });
-        }
-      } catch (e) {
-        if (!mounted) return;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (!mounted) return;
+
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
         setState(() {
-          name = '(error de conexión)';
+          name = (data['name'] ?? '').toString().isEmpty
+              ? '(no configurado)'
+              : data['name'];
+          avatarUrl = (data['avatar'] ?? '').toString();
+          loading = false;
+        });
+      } else {
+        setState(() {
+          name = '(no configurado)';
           avatarUrl = '';
           loading = false;
         });
       }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        name = '(error de conexión)';
+        avatarUrl = '';
+        loading = false;
+      });
     }
   }
 
   Future<void> editNameDialog() async {
-    final controller = TextEditingController(text: name);
     final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes iniciar sesión para editar tu nombre.')),
+      );
+      return;
+    }
+
+    final controller = TextEditingController(text: name == '(no configurado)' ? '' : name);
+    final focusNode = FocusNode();
+    String? errorText;
+
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Editar nombre'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'Nuevo nombre'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () async {
+      barrierDismissible: true,
+      builder: (dialogCtx) {
+        // Pide foco y coloca cursor al final al pintar el diálogo
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!focusNode.hasFocus) {
+            focusNode.requestFocus();
+            controller.selection = TextSelection.collapsed(offset: controller.text.length);
+          }
+        });
+
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) {
+            Future<void> _save() async {
               final newName = controller.text.trim();
-              if (newName.isNotEmpty && user != null) {
-                final navigator = Navigator.of(context);
+              if (newName.isEmpty) {
+                setStateDialog(() => errorText = 'El nombre no puede estar vacío');
+                return;
+              }
+              try {
                 await FirebaseFirestore.instance
                     .collection('users')
                     .doc(user.uid)
-                    .update({'name': newName});
+                    .set(
+                  {
+                    'name': newName,
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  },
+                  SetOptions(merge: true), // ✅ crea o actualiza
+                );
+
                 if (!mounted) return;
                 setState(() => name = newName);
-                navigator.pop();
+                Navigator.of(dialogCtx).pop();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Nombre actualizado.')),
+                );
+              } on FirebaseException catch (e) {
+                setStateDialog(() => errorText = e.message ?? e.code);
+              } catch (_) {
+                setStateDialog(() => errorText = 'Ocurrió un error al actualizar.');
               }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
+            }
+
+            return AlertDialog(
+              title: const Text('Editar nombre'),
+              content: TextField(
+                controller: controller,
+                focusNode: focusNode,
+                autofocus: true,
+                textInputAction: TextInputAction.done,
+                keyboardType: TextInputType.name,
+                maxLines: 1,
+                onSubmitted: (_) => _save(),
+                decoration: InputDecoration(
+                  labelText: 'Nuevo nombre',
+                  helperText: null,    // evita strings vacías -> SPAN logs
+                  errorText: errorText,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogCtx).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                TextButton(
+                  onPressed: _save,
+                  child: const Text('Guardar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
+
+    controller.dispose();
+    focusNode.dispose();
   }
 
   Future<void> editPhoto() async {
     final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes iniciar sesión para editar tu foto.')),
+      );
+      return;
+    }
+
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 80,
     );
-    if (picked != null && user != null) {
-      // Sube a Storage y guarda URL real. Por ahora simulamos path local:
+    if (picked != null) {
+      // TODO: Subir a Firebase Storage y obtener URL real
       final String fakeUrl = picked.path;
+
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .update({'avatar': fakeUrl});
+          .set({'avatar': fakeUrl, 'updatedAt': FieldValue.serverTimestamp()},
+               SetOptions(merge: true)); // ✅ no falla si no existe
+
+      if (!mounted) return;
       setState(() => avatarUrl = fakeUrl);
     }
   }
@@ -128,24 +227,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme; // esquema del tema actual
+    final cs = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       appBar: AppBar(
-        // Hereda colores del tema; no forzar background/foreground
         title: const Text('Mi Perfil'),
         centerTitle: true,
-        // BackButton heredará el color automáticamente según el tema
       ),
-      // ❌ No pongas backgroundColor aquí; deja que el tema pinte todo
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -154,15 +249,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: editPhoto,
                       child: CircleAvatar(
                         radius: 45,
-                        backgroundColor: cs.primary, // del tema
+                        backgroundColor: cs.primary,
                         backgroundImage: (avatarUrl.isNotEmpty)
                             ? (avatarUrl.startsWith('http')
                                 ? NetworkImage(avatarUrl)
                                 : FileImage(File(avatarUrl)) as ImageProvider)
                             : null,
                         child: avatarUrl.isEmpty
-                            ? Icon(Icons.person,
-                                size: 54, color: cs.onPrimary)
+                            ? Icon(Icons.person, size: 54, color: cs.onPrimary)
                             : null,
                       ),
                     ),
@@ -172,24 +266,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 18),
 
-                    // Título de sección (hereda color del texto)
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text('Nombre', style: textTheme.bodyMedium),
                     ),
                     const SizedBox(height: 4),
 
-                    // Caja estilo "card" que respeta tema
                     GestureDetector(
                       onTap: editNameDialog,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                         decoration: BoxDecoration(
-                          color: cs.surface, // antes: Colors.white
+                          color: cs.surface,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: cs.outlineVariant, // antes: grey fijo
+                            color: cs.outlineVariant,
                             width: 1,
                           ),
                         ),
@@ -214,14 +305,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 18),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: Text('Correo electrónico',
-                          style: textTheme.bodyMedium),
+                      child: Text('Correo electrónico', style: textTheme.bodyMedium),
                     ),
                     const SizedBox(height: 4),
 
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 18, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                       decoration: BoxDecoration(
                         color: cs.surface,
                         borderRadius: BorderRadius.circular(12),
@@ -239,7 +328,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          // Puedes mantener el rojo en ambos temas
                           backgroundColor: const Color(0xFFE53935),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),

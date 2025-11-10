@@ -27,19 +27,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           .limit(1)
           .get();
 
-      if (query.docs.isNotEmpty) {
-        setState(() {
-          product = query.docs.first.data();
-          loading = false;
-        });
-      } else {
-        setState(() {
-          product = null;
-          loading = false;
-        });
-      }
+      setState(() {
+        product = query.docs.isNotEmpty ? query.docs.first.data() : null;
+        loading = false;
+      });
     } catch (e) {
-      print('Error al cargar producto: $e');
+      debugPrint('Error al cargar producto: $e');
       setState(() {
         product = null;
         loading = false;
@@ -47,92 +40,72 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
-  /// 🚦 Calcula el color del semáforo según límites nutricionales (OMS)
+  /// 🚦 Calcula color semáforo (OMS aprox)
   Color getTrafficLight(num value, num low, num high) {
-    if (value >= high) return Colors.red; // Alto
-    if (value > low) return Colors.amber; // Moderado
-    return Colors.green; // Bajo/Saludable
+    if (value >= high) return Colors.red;
+    if (value > low) return Colors.amber;
+    return Colors.green;
   }
 
-  /// 📊 Calcula la calificación GLOBAL del producto
+  /// 📊 Calificación global
   String getGlobalRating() {
     if (product == null) return 'Sin datos';
 
     int redFlags = 0;
     int yellowFlags = 0;
 
-    // Evaluar azúcar (límites: bajo < 5g, alto >= 15g)
     final sugar = (product!['azucar'] ?? 0).toDouble();
-    if (sugar >= 15) {
-      redFlags++;
-    } else if (sugar > 5) {
-      yellowFlags++;
-    }
-
-    // Evaluar grasas totales (límites: bajo < 3g, alto >= 20g)
     final fat = (product!['grasas'] ?? 0).toDouble();
-    if (fat >= 20) {
-      redFlags++;
-    } else if (fat > 3) {
-      yellowFlags++;
-    }
+    final salt = (product!['sal'] ?? product!['sodio'] ?? 0).toDouble();
 
-    // Evaluar sal/sodio (límites: bajo < 0.12g, alto >= 0.6g)
-    final salt = (product!['sodio'] ?? 0).toDouble();
-    if (salt >= 0.6) {
-      redFlags++;
-    } else if (salt > 0.12) {
-      yellowFlags++;
-    }
+    if (sugar >= 15) redFlags++; else if (sugar > 5) yellowFlags++;
+    if (fat   >= 20) redFlags++; else if (fat   > 3) yellowFlags++;
+    if (salt  >= 0.6) redFlags++; else if (salt  > 0.12) yellowFlags++;
 
-    // Determinar calificación global
-    if (redFlags >= 2) {
-      return '⚠️ Alto en múltiples nutrientes críticos';
-    }
-    if (redFlags == 1 && yellowFlags >= 1) {
-      return '⚠️ Consumir con moderación';
-    }
-    if (redFlags == 1) {
-      return '⚠️ Alto en un nutriente crítico';
-    }
-    if (yellowFlags >= 2) {
-      return 'ℹ️ Niveles moderados de nutrientes';
-    }
-    if (yellowFlags == 1) {
-      return '✓ Mayormente saludable';
-    }
+    if (redFlags >= 2) return '⚠️ Alto en múltiples nutrientes críticos';
+    if (redFlags == 1 && yellowFlags >= 1) return '⚠️ Consumir con moderación';
+    if (redFlags == 1) return '⚠️ Alto en un nutriente crítico';
+    if (yellowFlags >= 2) return 'ℹ️ Niveles moderados de nutrientes';
+    if (yellowFlags == 1) return '✓ Mayormente saludable';
     return '✓ Producto nutricionalmente equilibrado';
   }
 
   /// 🎨 Color del indicador global
   Color getGlobalColor() {
     if (product == null) return Colors.grey;
-
-    int redFlags = 0;
-    int yellowFlags = 0;
-
     final sugar = (product!['azucar'] ?? 0).toDouble();
-    final fat = (product!['grasas'] ?? 0).toDouble();
-    final salt = (product!['sodio'] ?? 0).toDouble();
+    final fat   = (product!['grasas'] ?? 0).toDouble();
+    final salt  = (product!['sal'] ?? product!['sodio'] ?? 0).toDouble();
 
-    if (sugar >= 15 || fat >= 20 || salt >= 0.6) redFlags++;
-    if (sugar > 5 || fat > 3 || salt > 0.12) yellowFlags++;
+    final hasRed    = sugar >= 15 || fat >= 20 || salt >= 0.6;
+    final hasYellow = sugar > 5   || fat > 3   || salt > 0.12;
 
-    if (redFlags > 0) return Colors.red;
-    if (yellowFlags > 0) return Colors.amber;
+    if (hasRed) return Colors.red;
+    if (hasYellow) return Colors.amber;
     return Colors.green;
   }
 
-  /// 📦 Widget de tarjeta nutricional individual
-  Widget nutritionCard(String label, String value, Color color, {String? description}) {
+  /// 📦 Tarjeta nutricional responsiva y accesible en modo oscuro
+  Widget nutritionCard(
+    String label,
+    String value,
+    Color accentColor, {
+    String? description,
+  }) {
+    final theme = Theme.of(context);
+    final surface = theme.colorScheme.surface;
+    // Mezcla un tinte del color con el surface actual para que funcione en dark y light
+    final bg = Color.alphaBlend(accentColor.withOpacity(0.12), surface);
+    final textColor = theme.colorScheme.onSurface;
+
     return Expanded(
       child: Container(
         margin: const EdgeInsets.all(6),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
+          color: bg,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color, width: 2),
+          border: Border.all(color: accentColor, width: 2),
         ),
         child: Column(
           children: [
@@ -141,11 +114,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               width: 16,
               height: 16,
               decoration: BoxDecoration(
-                color: color,
+                color: accentColor,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.4),
+                    color: accentColor.withOpacity(0.4),
                     blurRadius: 8,
                     spreadRadius: 2,
                   ),
@@ -155,38 +128,34 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             const SizedBox(height: 8),
             Text(
               label,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: color.darken(0.3),
-              ),
               textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: textColor.withOpacity(0.9),
+              ),
             ),
             const SizedBox(height: 6),
             Text(
               value,
-              style: TextStyle(
-                fontSize: 20,
+              style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: color.darken(0.2),
+                color: textColor,
               ),
             ),
             Text(
               'por 100g',
-              style: TextStyle(
-                fontSize: 11,
-                color: color.darken(0.2),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: textColor.withOpacity(0.7),
               ),
             ),
             if (description != null) ...[
               const SizedBox(height: 4),
               Text(
                 description,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: color.darken(0.1),
-                ),
                 textAlign: TextAlign.center,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: textColor.withOpacity(0.8),
+                ),
               ),
             ],
           ],
@@ -195,7 +164,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  /// 📊 Obtiene descripción del nivel nutricional
   String getNutrientLevel(num value, num low, num high) {
     if (value >= high) return 'Alto';
     if (value > low) return 'Moderado';
@@ -204,23 +172,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     if (loading) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Cargando...'),
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          backgroundColor: cs.surface,
+          foregroundColor: cs.onSurface,
           elevation: 0,
         ),
-        body: const Center(
+        backgroundColor: cs.surface,
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
+              CircularProgressIndicator(color: cs.primary),
+              const SizedBox(height: 16),
               Text(
                 'Analizando información nutricional...',
-                style: TextStyle(color: Colors.grey),
+                style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
               ),
             ],
           ),
@@ -232,63 +204,50 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Error'),
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          backgroundColor: cs.surface,
+          foregroundColor: cs.onSurface,
           elevation: 0,
         ),
+        backgroundColor: cs.surface,
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, size: 80, color: Colors.red),
+                Icon(Icons.error_outline, size: 80, color: cs.error),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Producto no encontrado',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
                   textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: cs.onSurface,
+                  ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  'Código: ${widget.codigo}',
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
-                    fontFamily: 'monospace',
-                  ),
-                ),
+                Text('Código: ${widget.codigo}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontFamily: 'monospace',
+                    )),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'No hay información disponible para este código de barras en nuestra base de datos.',
-                  style: TextStyle(color: Colors.grey),
                   textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
                 ),
                 const SizedBox(height: 32),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
-                  label: const Text(
-                    'Escanear otro producto',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('Escanear otro producto'),
                 ),
               ],
             ),
@@ -297,51 +256,53 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       );
     }
 
-    // Extraer valores nutricionales
-    final sugar = (product!['azucar'] ?? 0).toDouble();
-    final fat = (product!['grasas'] ?? 0).toDouble();
-    final salt = (product!['sodio'] ?? 0).toDouble();
-    final calories = product!['calorias'] ?? 0;
+    // Valores nutricionales
+    final sugar    = (product!['azucar'] ?? 0).toDouble();
+    final fat      = (product!['grasas'] ?? 0).toDouble();
+    final salt     = (product!['sal'] ?? product!['sodio'] ?? 0).toDouble(); // usa SAL si existe
+    final calories = (product!['calorias'] ?? 0).round();
+
+    // Ingredientes (texto → lista como fallback)
+    final ingredientesText = (product!['ingredientes_text'] as String?)?.trim();
+    final ingredientesList = (product!['ingredientes'] as List?)?.cast<String>() ?? const [];
+    final ingredientesParaMostrar = (ingredientesText != null && ingredientesText.isNotEmpty)
+        ? ingredientesText
+        : (ingredientesList.isNotEmpty ? ingredientesList.join(', ') : 'Ingredientes no disponibles');
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Información Nutricional'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: cs.surface,
+        foregroundColor: cs.onSurface,
         elevation: 0,
       ),
-      backgroundColor: const Color(0xFFF9F9FB),
+      backgroundColor: cs.surface, // ¡respeta modo oscuro/claro!
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // 📷 Imagen del producto
+              // 📷 Imagen
               Container(
                 height: 120,
                 width: 120,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
-                  color: Colors.grey[200],
+                  color: cs.surfaceVariant,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: cs.shadow.withOpacity(0.1),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
-                  image: product!["imagen"] != null &&
-                          product!["imagen"].toString().isNotEmpty
-                      ? DecorationImage(
-                          image: NetworkImage(product!["imagen"]),
-                          fit: BoxFit.cover,
-                        )
+                  image: product!["imagen"] != null && product!["imagen"].toString().isNotEmpty
+                      ? DecorationImage(image: NetworkImage(product!["imagen"]), fit: BoxFit.cover)
                       : null,
                 ),
-                child: product!["imagen"] == null ||
-                        product!["imagen"].toString().isEmpty
-                    ? Icon(Icons.fastfood, size: 60, color: Colors.grey[400])
+                child: (product!["imagen"] == null || product!["imagen"].toString().isEmpty)
+                    ? Icon(Icons.fastfood, size: 60, color: cs.onSurfaceVariant)
                     : null,
               ),
 
@@ -350,40 +311,37 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               // 🏷️ Marca
               Text(
                 product!["marca"] ?? 'Marca desconocida',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 4),
 
-              // 📦 Nombre del producto
+              // 📦 Nombre
               Text(
                 product!["nombre"] ?? 'Producto sin nombre',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
                 textAlign: TextAlign.center,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: cs.onSurface,
+                ),
               ),
 
               const SizedBox(height: 20),
 
-              // 🚦 SEMÁFORO NUTRICIONAL GLOBAL
+              // 🚦 Calificación global
               Card(
                 elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                color: cs.surface,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
                     gradient: LinearGradient(
                       colors: [
-                        getGlobalColor().withValues(alpha: 0.1),
-                        Colors.white,
+                        getGlobalColor().withOpacity(0.18),
+                        cs.surface,
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -403,8 +361,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color:
-                                      getGlobalColor().withValues(alpha: 0.4),
+                                  color: getGlobalColor().withOpacity(0.4),
                                   blurRadius: 12,
                                   spreadRadius: 2,
                                 ),
@@ -412,12 +369,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Expanded(
+                          Expanded(
                             child: Text(
                               "Calificación Nutricional",
-                              style: TextStyle(
+                              style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 18,
+                                color: cs.onSurface,
                               ),
                             ),
                           ),
@@ -426,9 +383,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       const SizedBox(height: 12),
                       Text(
                         getGlobalRating(),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[700],
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: cs.onSurfaceVariant,
                           height: 1.4,
                         ),
                       ),
@@ -439,90 +395,71 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
               const SizedBox(height: 20),
 
-              // 📊 TABLA NUTRICIONAL
-              const Align(
+              // 📊 Título tabla
+              Align(
                 alignment: Alignment.centerLeft,
                 child: Padding(
-                  padding: EdgeInsets.only(left: 6, bottom: 8),
+                  padding: const EdgeInsets.only(left: 6, bottom: 8),
                   child: Text(
                     'Información Nutricional',
-                    style: TextStyle(
-                      fontSize: 16,
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: cs.onSurface,
                     ),
                   ),
                 ),
               ),
 
-              // Primera fila: Calorías y Azúcares
+              // Fila 1
               Row(
                 children: [
-                  nutritionCard(
-                    'Calorías',
-                    '$calories kcal',
-                    Colors.orange.shade700,
-                    description: 'Energía',
-                  ),
-                  nutritionCard(
-                    'Azúcares',
-                    '${sugar.toStringAsFixed(1)}g',
-                    getTrafficLight(sugar, 5, 15),
-                    description: getNutrientLevel(sugar, 5, 15),
-                  ),
+                  nutritionCard('Calorías', '$calories kcal', Colors.orange.shade700, description: 'Energía'),
+                  nutritionCard('Azúcares', '${sugar.toStringAsFixed(1)}g',
+                      getTrafficLight(sugar, 5, 15),
+                      description: getNutrientLevel(sugar, 5, 15)),
                 ],
               ),
 
-              // Segunda fila: Grasas y Sal
+              // Fila 2
               Row(
                 children: [
-                  nutritionCard(
-                    'Grasas',
-                    '${fat.toStringAsFixed(1)}g',
-                    getTrafficLight(fat, 3, 20),
-                    description: getNutrientLevel(fat, 3, 20),
-                  ),
-                  nutritionCard(
-                    'Sal',
-                    '${salt.toStringAsFixed(2)}g',
-                    getTrafficLight(salt, 0.12, 0.6),
-                    description: getNutrientLevel(salt, 0.12, 0.6),
-                  ),
+                  nutritionCard('Grasas', '${fat.toStringAsFixed(1)}g',
+                      getTrafficLight(fat, 3, 20),
+                      description: getNutrientLevel(fat, 3, 20)),
+                  nutritionCard('Sal', '${salt.toStringAsFixed(2)}g',
+                      getTrafficLight(salt, 0.12, 0.6),
+                      description: getNutrientLevel(salt, 0.12, 0.6)),
                 ],
               ),
 
               const SizedBox(height: 24),
 
-              // 🧪 INGREDIENTES
+              // 🧪 Ingredientes
               Card(
                 elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+                color: cs.surface,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.list_alt, size: 20),
-                          SizedBox(width: 8),
-                          Text(
-                            'Ingredientes',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
+                          Icon(Icons.list_alt, size: 20, color: cs.onSurface),
+                          const SizedBox(width: 8),
+                          Text('Ingredientes',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: cs.onSurface,
+                              )),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        (product!["ingredientes"] as List<dynamic>).join(', '),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[800],
+                        ingredientesParaMostrar,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: cs.onSurface,
                           height: 1.5,
                         ),
                       ),
@@ -538,56 +475,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     elevation: 3,
                   ),
-                  icon: const Icon(
-                    Icons.qr_code_scanner,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                  label: const Text(
-                    'Escanear otro producto',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
+                  icon: const Icon(Icons.qr_code_scanner, size: 24),
+                  label: const Text('Escanear otro producto'),
                   onPressed: () => Navigator.pushNamed(context, '/scan'),
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              // ℹ️ Nota informativa
               Text(
                 'Valores calculados por cada 100g de producto',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
                   fontStyle: FontStyle.italic,
                 ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),
         ),
       ),
     );
-  }
-}
-
-// 🎨 Extensión para oscurecer colores
-extension ColorHelpers on Color {
-  Color darken([double amount = .1]) {
-    assert(amount >= 0 && amount <= 1);
-    final hsl = HSLColor.fromColor(this);
-    final hslDark = hsl.withLightness((hsl.lightness - amount).clamp(0.0, 1.0));
-    return hslDark.toColor();
   }
 }
