@@ -14,16 +14,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // Controllers
   final _nameCtrl = TextEditingController();
-  final _lastNameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
 
-  // Otros campos
   String? _country;
-  DateTime? _birthDate;
-  bool _acceptTerms = false;
 
   // UI state
   bool _hidePassword = true;
@@ -35,11 +30,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _lastNameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
-    _phoneCtrl.dispose();
     super.dispose();
   }
 
@@ -70,21 +63,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
-  Future<void> _pickBirthDate() async {
-    final now = DateTime.now();
-    final first = DateTime(now.year - 100, now.month, now.day);
-    final last = DateTime(now.year - 10, now.month, now.day);
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime(now.year - 18, now.month, now.day),
-      firstDate: first,
-      lastDate: last,
-    );
-    if (picked != null) {
-      setState(() => _birthDate = picked);
-    }
-  }
-
   void _showError(String msg) {
     showDialog(
       context: context,
@@ -92,7 +70,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         title: const Text('Error'),
         content: Text(msg),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Aceptar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Aceptar'),
+          ),
         ],
       ),
     );
@@ -101,18 +82,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _register() async {
     final formOK = _formKey.currentState?.validate() ?? false;
     if (!formOK) return;
-    if (_country == null || _country!.isEmpty) {
-      _showError('Selecciona tu país.');
-      return;
-    }
-    if (_birthDate == null) {
-      _showError('Selecciona tu fecha de nacimiento.');
-      return;
-    }
-    if (!_acceptTerms) {
-      _showError('Debes aceptar los términos y la política de privacidad.');
-      return;
-    }
 
     setState(() => _loading = true);
 
@@ -124,21 +93,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       final uid = cred.user!.uid;
 
-      // Guarda perfil extendido
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'name': _nameCtrl.text.trim(),
-        'last_name': _lastNameCtrl.text.trim(),
+        'display_name': _nameCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
-        'phone': _phoneCtrl.text.trim(),
         'country': _country,
-        'birth_date': Timestamp.fromDate(_birthDate!),
         'created_at': FieldValue.serverTimestamp(),
         'email_verified': false,
         'avatar': '',
         'role': 'user',
       }, SetOptions(merge: true));
 
-      // Verificación de correo
+      // Verificación de correo (opcional pero profesional)
       try {
         await cred.user!.sendEmailVerification();
       } catch (_) {}
@@ -155,7 +120,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+              onPressed: () =>
+                  Navigator.pushReplacementNamed(context, '/login'),
               child: const Text('Aceptar'),
             ),
           ],
@@ -191,6 +157,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       appBar: AppBar(
         title: const Text('Crear cuenta'),
         centerTitle: true,
+        // 👉 Flecha para volver al login
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () =>
+              Navigator.pushReplacementNamed(context, '/login'),
+        ),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -211,13 +183,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: const Icon(Icons.person_add_alt_1, size: 48),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
+                Text(
+                  'Crea tu cuenta para empezar a escanear productos y revisar su información nutricional.',
+                  textAlign: TextAlign.center,
+                  style: tt.bodyMedium,
+                ),
+                const SizedBox(height: 24),
 
+                // Nombre
                 Text('Nombre', style: tt.labelLarge),
                 const SizedBox(height: 4),
                 TextFormField(
                   controller: _nameCtrl,
                   validator: (v) => _required(v, label: 'Nombre'),
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     hintText: 'Tu nombre',
                     prefixIcon: Icon(Icons.person_outline),
@@ -225,24 +205,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                Text('Apellido', style: tt.labelLarge),
-                const SizedBox(height: 4),
-                TextFormField(
-                  controller: _lastNameCtrl,
-                  validator: (v) => _required(v, label: 'Apellido'),
-                  decoration: const InputDecoration(
-                    hintText: 'Tu apellido',
-                    prefixIcon: Icon(Icons.badge_outlined),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
+                // Correo
                 Text('Correo electrónico', style: tt.labelLarge),
                 const SizedBox(height: 4),
                 TextFormField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
                   validator: _emailValidator,
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     hintText: 'tu@email.com',
                     prefixIcon: Icon(Icons.mail_outline),
@@ -250,54 +220,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 14),
 
+                // Contraseña
                 Text('Contraseña', style: tt.labelLarge),
                 const SizedBox(height: 4),
                 TextFormField(
                   controller: _passwordCtrl,
                   obscureText: _hidePassword,
                   validator: _passwordValidator,
+                  textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     hintText: '********',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      icon: Icon(_hidePassword ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => _hidePassword = !_hidePassword),
+                      icon: Icon(
+                        _hidePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                      onPressed: () =>
+                          setState(() => _hidePassword = !_hidePassword),
                     ),
                   ),
                 ),
                 const SizedBox(height: 14),
 
+                // Confirmar Contraseña
                 Text('Confirmar contraseña', style: tt.labelLarge),
                 const SizedBox(height: 4),
                 TextFormField(
                   controller: _confirmCtrl,
                   obscureText: _hideConfirm,
                   validator: _confirmValidator,
+                  textInputAction: TextInputAction.done,
                   decoration: InputDecoration(
                     hintText: '********',
                     prefixIcon: const Icon(Icons.lock_reset_outlined),
                     suffixIcon: IconButton(
-                      icon: Icon(_hideConfirm ? Icons.visibility : Icons.visibility_off),
-                      onPressed: () => setState(() => _hideConfirm = !_hideConfirm),
+                      icon: Icon(
+                        _hideConfirm
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                      ),
+                      onPressed: () =>
+                          setState(() => _hideConfirm = !_hideConfirm),
                     ),
                   ),
                 ),
                 const SizedBox(height: 14),
 
-                Text('Teléfono', style: tt.labelLarge),
-                const SizedBox(height: 4),
-                TextFormField(
-                  controller: _phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  validator: (v) => _required(v, label: 'Teléfono'),
-                  decoration: const InputDecoration(
-                    hintText: '+593 9xxxxxxx',
-                    prefixIcon: Icon(Icons.phone_outlined),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                Text('País', style: tt.labelLarge),
+                // País (opcional pero útil)
+                Text('País (opcional)', style: tt.labelLarge),
                 const SizedBox(height: 4),
                 DropdownButtonFormField<String>(
                   value: _country,
@@ -315,52 +287,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     prefixIcon: Icon(Icons.public),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 24),
 
-                Text('Fecha de nacimiento', style: tt.labelLarge),
-                const SizedBox(height: 4),
-                InkWell(
-                  onTap: _pickBirthDate,
-                  borderRadius: BorderRadius.circular(12),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.cake_outlined),
-                      hintText: 'Selecciona una fecha',
-                    ),
-                    child: Text(
-                      _birthDate == null
-                          ? 'Selecciona una fecha'
-                          : '${_birthDate!.day.toString().padLeft(2, '0')}/${_birthDate!.month.toString().padLeft(2, '0')}/${_birthDate!.year}',
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Checkbox(
-                      value: _acceptTerms,
-                      onChanged: (v) => setState(() => _acceptTerms = v ?? false),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Acepto los Términos de uso y la Política de privacidad.',
-                        style: tt.bodySmall,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
+                // Botón Crear cuenta
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _loading ? null : _register,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     child: _loading
                         ? const SizedBox(
@@ -376,13 +314,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
 
                 const SizedBox(height: 12),
+
+                // Link para ir al login
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text('¿Ya tienes cuenta?', style: tt.bodyMedium),
                     const SizedBox(width: 6),
                     GestureDetector(
-                      onTap: () => Navigator.pushReplacementNamed(context, '/login'),
+                      onTap: () =>
+                          Navigator.pushReplacementNamed(context, '/login'),
                       child: Text(
                         'Inicia sesión',
                         style: TextStyle(

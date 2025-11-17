@@ -43,14 +43,67 @@ class HistoryScreen extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: historyService.getHistoryStream(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          // ⏳ Mientras se establece la conexión con Firestore
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final docs = snapshot.data!.docs;
-          if (docs.isEmpty) {
-            return const Center(child: Text('Aún no has escaneado productos'));
+          // ❌ Si hay error (por ejemplo reglas de Firestore)
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text('Ocurrió un error al cargar el historial.'),
+            );
           }
+
+          // ✅ Si no hay datos o la colección está vacía para este usuario
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            final cs = Theme.of(context).colorScheme;
+            final tt = Theme.of(context).textTheme;
+
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.history_toggle_off,
+                      size: 72,
+                      color: cs.outline.withOpacity(0.8),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Todavía no tienes productos escaneados',
+                      textAlign: TextAlign.center,
+                      style: tt.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Escanea tu primer producto para verlo aquí en tu historial.',
+                      textAlign: TextAlign.center,
+                      style: tt.bodyMedium?.copyWith(
+                        color: tt.bodyMedium?.color?.withOpacity(0.8),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      onPressed: () {
+                        // Ajusta la ruta al nombre de tu pantalla de escaneo
+                        Navigator.pushNamed(context, '/scan');
+                      },
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: const Text('Escanear ahora'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // --- Aquí sí hay elementos en el historial ---
+          final docs = snapshot.data!.docs;
 
           // --- De-dup en cliente por si existen duplicados antiguos ---
           final byCode = <String, Map<String, dynamic>>{};
