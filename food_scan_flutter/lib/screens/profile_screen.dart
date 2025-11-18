@@ -6,7 +6,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 
-
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -212,214 +211,214 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ========= EDITAR TELÉFONO =========
-Future<void> editPhoneDialog() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Debes iniciar sesión para editar tu teléfono.')),
-    );
-    return;
-  }
-
-  final controller = TextEditingController(text: phone);
-  final focusNode = FocusNode();
-  String? errorText;
-
-  await showDialog(
-    context: context,
-    barrierDismissible: true,
-    builder: (dialogCtx) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!focusNode.hasFocus) {
-          focusNode.requestFocus();
-          controller.selection =
-              TextSelection.collapsed(offset: controller.text.length);
-        }
-      });
-
-      return StatefulBuilder(
-        builder: (ctx, setStateDialog) {
-          Future<void> _save() async {
-            final newPhone = controller.text.trim();
-
-            if (newPhone.isEmpty) {
-              setStateDialog(
-                  () => errorText = 'El teléfono no puede estar vacío');
-              return;
-            }
-
-            // ✅ Solo permitimos exactamente 10 dígitos (Ecuador)
-            if (newPhone.length != 10) {
-              setStateDialog(
-                  () => errorText = 'El teléfono debe tener 10 dígitos (Ecuador)');
-              return;
-            }
-
-            try {
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .set(
-                {
-                  'phone': newPhone,
-                  'updated_at': FieldValue.serverTimestamp(),
-                },
-                SetOptions(merge: true),
-              );
-
-              if (!mounted) return;
-              setState(() => phone = newPhone);
-              Navigator.of(dialogCtx).pop();
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Teléfono actualizado.')),
-              );
-            } on FirebaseException catch (e) {
-              setStateDialog(() => errorText = e.message ?? e.code);
-            } catch (_) {
-              setStateDialog(
-                  () => errorText = 'Ocurrió un error al actualizar.');
-            }
-          }
-
-          return AlertDialog(
-            title: const Text('Editar teléfono'),
-            content: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              autofocus: true,
-              textInputAction: TextInputAction.done,
-              keyboardType: TextInputType.phone,
-              maxLines: 1,
-              // ✅ Solo números
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-              ],
-              // ✅ Máximo 10 dígitos
-              maxLength: 10,
-              onSubmitted: (_) => _save(),
-              decoration: InputDecoration(
-                labelText: 'Número de teléfono',
-                helperText: '10 dígitos (Ecuador)',
-                errorText: errorText,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogCtx).pop(),
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                onPressed: _save,
-                child: const Text('Guardar'),
-              ),
-            ],
-          );
-        },
+  Future<void> editPhoneDialog() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes iniciar sesión para editar tu teléfono.')),
       );
-    },
-  );
+      return;
+    }
 
-  controller.dispose();
-  focusNode.dispose();
-}
+    final controller = TextEditingController(text: phone);
+    final focusNode = FocusNode();
+    String? errorText;
 
-// ========= EDITAR PAÍS =========
-Future<void> editCountryDialog() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Debes iniciar sesión para editar tu país.')),
-    );
-    return;
-  }
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!focusNode.hasFocus) {
+            focusNode.requestFocus();
+            controller.selection =
+                TextSelection.collapsed(offset: controller.text.length);
+          }
+        });
 
-  String? tempCountry = country;
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) {
+            Future<void> _save() async {
+              final newPhone = controller.text.trim();
 
-  await showDialog(
-    context: context,
-    barrierDismissible: true,
-    builder: (dialogCtx) {
-      return StatefulBuilder(
-        builder: (ctx, setStateDialog) {
-          Future<void> _save() async {
-            // ✅ Validación: aseguramos que haya un país seleccionado
-            if (tempCountry == null || tempCountry!.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Selecciona un país antes de guardar.')),
-              );
-              return;
+              if (newPhone.isEmpty) {
+                setStateDialog(
+                    () => errorText = 'El teléfono no puede estar vacío');
+                return;
+              }
+
+              // ✅ Solo permitimos exactamente 10 dígitos (Ecuador)
+              if (newPhone.length != 10) {
+                setStateDialog(
+                    () => errorText = 'El teléfono debe tener 10 dígitos (Ecuador)');
+                return;
+              }
+
+              try {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .set(
+                  {
+                    'phone': newPhone,
+                    'updated_at': FieldValue.serverTimestamp(),
+                  },
+                  SetOptions(merge: true),
+                );
+
+                if (!mounted) return;
+                setState(() => phone = newPhone);
+                Navigator.of(dialogCtx).pop();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Teléfono actualizado.')),
+                );
+              } on FirebaseException catch (e) {
+                setStateDialog(() => errorText = e.message ?? e.code);
+              } catch (_) {
+                setStateDialog(
+                    () => errorText = 'Ocurrió un error al actualizar.');
+              }
             }
 
-            try {
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .set(
-                {
-                  'country': tempCountry,
-                  'updated_at': FieldValue.serverTimestamp(),
-                },
-                SetOptions(merge: true),
-              );
-
-              if (!mounted) return;
-              setState(() => country = tempCountry);
-              Navigator.of(dialogCtx).pop();
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('País actualizado.')),
-              );
-            } on FirebaseException catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(e.message ?? e.code)),
-              );
-            } catch (_) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Ocurrió un error al actualizar.'),
+            return AlertDialog(
+              title: const Text('Editar teléfono'),
+              content: TextField(
+                controller: controller,
+                focusNode: focusNode,
+                autofocus: true,
+                textInputAction: TextInputAction.done,
+                keyboardType: TextInputType.phone,
+                maxLines: 1,
+                // ✅ Solo números
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                ],
+                // ✅ Máximo 10 dígitos
+                maxLength: 10,
+                onSubmitted: (_) => _save(),
+                decoration: InputDecoration(
+                  labelText: 'Número de teléfono',
+                  helperText: '10 dígitos (Ecuador)',
+                  errorText: errorText,
                 ),
-              );
-            }
-          }
-
-          return AlertDialog(
-            title: const Text('Seleccionar país'),
-            content: DropdownButtonFormField<String>(
-              value: tempCountry,
-              decoration: const InputDecoration(
-                labelText: 'País',
               ),
-              items: const [
-                DropdownMenuItem(value: 'Ecuador', child: Text('Ecuador')),
-                DropdownMenuItem(value: 'México', child: Text('México')),
-                DropdownMenuItem(value: 'Colombia', child: Text('Colombia')),
-                DropdownMenuItem(value: 'Perú', child: Text('Perú')),
-                DropdownMenuItem(value: 'España', child: Text('España')),
-                DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogCtx).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                TextButton(
+                  onPressed: _save,
+                  child: const Text('Guardar'),
+                ),
               ],
-              onChanged: (v) {
-                setStateDialog(() => tempCountry = v);
-              },
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogCtx).pop(),
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                onPressed: _save,
-                child: const Text('Guardar'),
-              ),
-            ],
-          );
-        },
+            );
+          },
+        );
+      },
+    );
+
+    controller.dispose();
+    focusNode.dispose();
+  }
+
+  // ========= EDITAR PAÍS =========
+  Future<void> editCountryDialog() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes iniciar sesión para editar tu país.')),
       );
-    },
-  );
-}
+      return;
+    }
+
+    String? tempCountry = country;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setStateDialog) {
+            Future<void> _save() async {
+              // ✅ Validación: aseguramos que haya un país seleccionado
+              if (tempCountry == null || tempCountry!.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Selecciona un país antes de guardar.')),
+                );
+                return;
+              }
+
+              try {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .set(
+                  {
+                    'country': tempCountry,
+                    'updated_at': FieldValue.serverTimestamp(),
+                  },
+                  SetOptions(merge: true),
+                );
+
+                if (!mounted) return;
+                setState(() => country = tempCountry);
+                Navigator.of(dialogCtx).pop();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('País actualizado.')),
+                );
+              } on FirebaseException catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(e.message ?? e.code)),
+                );
+              } catch (_) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Ocurrió un error al actualizar.'),
+                  ),
+                );
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Seleccionar país'),
+              content: DropdownButtonFormField<String>(
+                value: tempCountry,
+                decoration: const InputDecoration(
+                  labelText: 'País',
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'Ecuador', child: Text('Ecuador')),
+                  DropdownMenuItem(value: 'México', child: Text('México')),
+                  DropdownMenuItem(value: 'Colombia', child: Text('Colombia')),
+                  DropdownMenuItem(value: 'Perú', child: Text('Perú')),
+                  DropdownMenuItem(value: 'España', child: Text('España')),
+                  DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+                ],
+                onChanged: (v) {
+                  setStateDialog(() => tempCountry = v);
+                },
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogCtx).pop(),
+                  child: const Text('Cancelar'),
+                ),
+                TextButton(
+                  onPressed: _save,
+                  child: const Text('Guardar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   Future<void> editPhoto() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -452,6 +451,92 @@ Future<void> editCountryDialog() async {
 
       if (!mounted) return;
       setState(() => avatarUrl = fakeUrl);
+    }
+  }
+
+  // ========= ELIMINAR CUENTA =========
+  Future<void> _deleteAccount() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay sesión activa.')),
+      );
+      return;
+    }
+
+    final cs = Theme.of(context).colorScheme;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar cuenta'),
+        content: const Text(
+          'Esta acción eliminará tu cuenta, tu perfil y todo tu historial de productos escaneados.\n\n'
+          'Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: cs.error,
+              foregroundColor: cs.onError,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Eliminar definitivamente'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final uid = user.uid;
+
+      // 1. Borrar historial de este usuario
+      final historialQuery = await FirebaseFirestore.instance
+          .collection('historial')
+          .where('userId', isEqualTo: uid)
+          .get();
+
+      for (final doc in historialQuery.docs) {
+        await doc.reference.delete();
+      }
+
+      // 2. Borrar documento de users
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .delete();
+
+      // 3. Eliminar usuario de Auth
+      await user.delete();
+
+      // 4. Cerrar sesión y mandar al login
+      await FirebaseAuth.instance.signOut();
+      await googleSignIn.signOut();
+
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    } on FirebaseAuthException catch (e) {
+      String msg = 'No se pudo eliminar la cuenta.';
+      if (e.code == 'requires-recent-login') {
+        msg =
+            'Por seguridad, Firebase exige que vuelvas a iniciar sesión antes de eliminar la cuenta.';
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo eliminar la cuenta: $e')),
+      );
     }
   }
 
@@ -650,6 +735,17 @@ Future<void> editCountryDialog() async {
 
                     const SizedBox(height: 32),
 
+                    // ===== Acciones de sesión / seguridad =====
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Cuenta y seguridad',
+                        style: textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
                     // ===== Cerrar sesión =====
                     SizedBox(
                       width: double.infinity,
@@ -671,6 +767,37 @@ Future<void> editCountryDialog() async {
                         ),
                         onPressed: logout,
                       ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // ===== Eliminar cuenta =====
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: cs.error,
+                          side: BorderSide(color: cs.error, width: 1.3),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: const Icon(Icons.delete_forever),
+                        label: const Text(
+                          'Eliminar cuenta permanentemente',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        onPressed: _deleteAccount,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Se borrarán tu perfil y el historial de productos escaneados.',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: cs.onSurface.withOpacity(0.7),
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),

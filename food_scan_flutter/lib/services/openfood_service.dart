@@ -2,7 +2,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// --------- Helpers fuera del main --------
+/// ======================
+///   HELPERS NUMÉRICOS
+/// ======================
 
 double? toDouble(dynamic v) {
   if (v == null) return null;
@@ -50,6 +52,58 @@ List<String> parseIngredients(String? ingredientsText) {
   return ingredients;
 }
 
+/// ======================
+///   TRADUCCIÓN
+/// ======================
+
+/// Traduce texto al español usando un servidor público de LibreTranslate.
+/// Si falla, devuelve el texto original.
+Future<String> translateToSpanish(String text, {
+  String baseUrl = 'https://translate.argosopentech.com',
+}) async {
+  if (text.trim().isEmpty) return text;
+
+  print('🌐 [TRAD] Enviando texto a traducir (${text.length} chars)...');
+
+  try {
+    final uri = Uri.parse('$baseUrl/translate');
+
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'q': text,
+        'source': 'auto', // detecta idioma
+        'target': 'es',
+        'format': 'text',
+      }),
+    );
+
+    print('🌐 [TRAD] Status code: ${response.statusCode}');
+
+    if (response.statusCode != 200) {
+      print('⚠️ [TRAD] Respuesta no OK: ${response.body}');
+      return text; // fallback: original
+    }
+
+    final data = jsonDecode(response.body);
+    final translated = (data['translatedText'] ?? '').toString();
+
+    if (translated.isEmpty) {
+      print('⚠️ [TRAD] Campo translatedText vacío, uso original');
+      return text;
+    }
+
+    print('✅ [TRAD] Traducción OK (len=${translated.length})');
+    return translated;
+  } catch (e) {
+    print('❌ [TRAD] Error al traducir: $e');
+    return text; // fallback
+  }
+}
+
 /// Guarda producto en Firestore
 Future<void> saveToFirestore(Map<String, dynamic> product) async {
   try {
@@ -63,9 +117,11 @@ Future<void> saveToFirestore(Map<String, dynamic> product) async {
   }
 }
 
-// --------------- Main fetch function ---------------
+/// ======================
+///   FUNCIÓN PRINCIPAL
+/// ======================
 
-/// Obtiene producto de OpenFoodFacts, normaliza campos y guarda en Firestore
+/// Obtiene producto de OpenFoodFacts, normaliza campos, traduce ingredientes y guarda en Firestore
 Future<Map<String, dynamic>?> getProductFromApi(String barcode) async {
   final url = 'https://world.openfoodfacts.org/api/v2/product/$barcode.json';
 
@@ -111,12 +167,14 @@ Future<Map<String, dynamic>?> getProductFromApi(String barcode) async {
         p['selected_images']?['front']?['display']?['es'] ??
         p['selected_images']?['front']?['display']?['en'];
 
-    // ---------- Ingredientes ----------
+    // ---------- Ingredientes (texto bruto) ----------
     final ingredientsText =
         p['ingredients_text_es'] ??
         p['ingredients_text'] ??
+        p['ingredients_text_with_allergens'] ??
         p['ingredients_text_en'];
 
+    // Array de ingredientes
     final ingredientsArray = (p['ingredients'] is List)
         ? (p['ingredients'] as List)
             .map((e) => (e is Map && e['text'] != null)
@@ -128,10 +186,20 @@ Future<Map<String, dynamic>?> getProductFromApi(String barcode) async {
             .toList()
         : <String>[];
 
+    // Texto normalizado (si no hay texto, usar array como string)
     final ingredientesTextNormalizado =
         (ingredientsText is String && ingredientsText.trim().isNotEmpty)
             ? ingredientsText
             : (ingredientsArray.isNotEmpty ? ingredientsArray.join(', ') : '');
+
+    print('📝 Ingredientes originales (len=${ingredientesTextNormalizado.length}):');
+    print(ingredientesTextNormalizado);
+
+    // ========= AQUÍ TRADUCIMOS =========
+    String ingredientesEs = ingredientesTextNormalizado;
+    if (ingredientesTextNormalizado.isNotEmpty) {
+      ingredientesEs = await translateToSpanish(ingredientesTextNormalizado);
+    }
 
     // ---------- Nutrimentos ----------
     final nutr = (p['nutriments'] as Map?) ?? {};
@@ -153,8 +221,7 @@ Future<Map<String, dynamic>?> getProductFromApi(String barcode) async {
     // Sal/Sodio
     double salt = pickNutriment(nutr, ['salt_100g', 'salt']); // g/100g
     double sodium = pickNutriment(nutr, ['sodium_100g', 'sodium']); // g/100g
-    // Si sodio viene evidentemente en mg (valor "grande"), convertir a g
-    if (sodium > 10) sodium = sodium / 1000;
+    if (sodium > 10) sodium = sodium / 1000; // mg → g aproximado
     if (salt == 0 && sodium > 0) salt = sodium * 2.5;
 
     // ---------- Extras útiles ----------
@@ -173,8 +240,10 @@ Future<Map<String, dynamic>?> getProductFromApi(String barcode) async {
     print('Azúcares(g/100g): $sugars');
     print('Grasas(g/100g): $fat');
     print('Sal(g/100g): $salt  | Sodio(g/100g): $sodium');
-    print('Ingredientes(TXT): ${ingredientesTextNormalizado.isNotEmpty}');
+    print('Ingredientes(TXT) no vacío?: ${ingredientesTextNormalizado.isNotEmpty}');
     print('Ingredientes(ARR): ${ingredientsArray.length} items');
+    print('📝 Ingredientes traducidos (len=${ingredientesEs.length}):');
+    print(ingredientesEs);
 
     // ---------- Mapeo al modelo de tu app ----------
     final productData = {
@@ -192,7 +261,8 @@ Future<Map<String, dynamic>?> getProductFromApi(String barcode) async {
       'proteinas': proteins,
 
       // Ingredientes
-      'ingredientes_text': ingredientesTextNormalizado,
+      'ingredientes_text': ingredientesEs,               // ✅ YA EN ESPAÑOL
+      'ingredientes_text_original': ingredientesTextNormalizado, // 👈 por si quieres ver el original
       'ingredientes': ingredientsArray,
 
       // Extras
@@ -216,7 +286,7 @@ Future<Map<String, dynamic>?> getProductFromApi(String barcode) async {
     print('Azúcar: ${productData['azucar']} g');
     print('Grasas: ${productData['grasas']} g');
     print('Sal: ${productData['sal']} g | Sodio: ${productData['sodio']} g');
-    print('Ingredientes TXT vacío?: ${(productData['ingredientes_text'] as String).isEmpty}');
+    print('Ingredientes TXT (ES) vacío?: ${(productData['ingredientes_text'] as String).isEmpty}');
     print('Ingredientes ARR: ${(productData['ingredientes'] as List).length} items');
     print('NutriScore: ${productData['nutriscore']} | NOVA: ${productData['nova_group']}');
 

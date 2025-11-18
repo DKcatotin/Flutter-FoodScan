@@ -256,6 +256,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       );
     }
 
+    // 🔹 URL de imagen robusta (distintos nombres de campo)
+    final imageUrl = ((product!['imagen'] ??
+                        product!['image'] ??
+                        product!['image_url'] ??
+                        product!['image_front_url'] ??
+                        product!['front_image'] ??
+                        '')
+                      ).toString();
+
     // Valores nutricionales
     final sugar    = (product!['azucar'] ?? 0).toDouble();
     final fat      = (product!['grasas'] ?? 0).toDouble();
@@ -297,11 +306,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       offset: const Offset(0, 4),
                     ),
                   ],
-                  image: product!["imagen"] != null && product!["imagen"].toString().isNotEmpty
-                      ? DecorationImage(image: NetworkImage(product!["imagen"]), fit: BoxFit.cover)
+                  image: imageUrl.isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(imageUrl),
+                          fit: BoxFit.cover,
+                        )
                       : null,
                 ),
-                child: (product!["imagen"] == null || product!["imagen"].toString().isEmpty)
+                child: imageUrl.isEmpty
                     ? Icon(Icons.fastfood, size: 60, color: cs.onSurfaceVariant)
                     : null,
               ),

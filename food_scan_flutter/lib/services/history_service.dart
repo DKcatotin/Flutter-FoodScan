@@ -33,6 +33,21 @@ class HistoryService {
     }
     _lastScannedCode = code;
 
+    // 🔹 Normalizar imagen desde varias claves posibles
+    final imagen = (product['imagen'] ??
+                    product['image'] ??
+                    product['image_url'] ??
+                    product['image_front_url'] ??
+                    '')
+        .toString();
+
+    // 🔹 Normalizar nivel / semáforo
+    final nivelTexto = (product['nivel'] ??
+                        product['semaforo'] ??
+                        product['categoria'] ??
+                        '')
+        .toString();
+
     // ID único por usuario + producto
     final docId = '${uid}_$code';
 
@@ -41,14 +56,18 @@ class HistoryService {
       'codigo': product['codigo'],
       'nombre': product['nombre'],
       'marca': product['marca'],
-      'imagen': product['imagen'],
+
+      // Usamos los valores normalizados
+      'imagen': imagen,
+      'nivel': nivelTexto,
+
       'calorias': product['calorias'],
       'azucar': product['azucar'],
       'grasas': product['grasas'],
       'sodio': product['sodio'],
       'ingredientes': product['ingredientes'],
 
-      if (product.containsKey('nivel')) 'nivel': product['nivel'],
+      // Guardamos también semáforo crudo si venía
       if (product.containsKey('semaforo')) 'semaforo': product['semaforo'],
 
       // Fechas
